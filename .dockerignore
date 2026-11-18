@@ -1,0 +1,9 @@
+.git
+.github
+.venv
+tests
+__pycache__
+*.pyc
+.pytest_cache
+reporte-pruebas.xml
+Jenkinsfile
