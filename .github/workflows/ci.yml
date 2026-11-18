@@ -1,0 +1,49 @@
+# El mismo pipeline del Jenkinsfile, ejecutado en GitHub Actions.
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  # Equivale a la etapa "Pruebas unitarias"
+  pruebas:
+    runs-on: ubuntu-latest
+    container: python:3.12-slim
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar dependencias de prueba
+        run: pip install --no-cache-dir -r requirements-dev.txt
+
+      - name: Ejecutar pruebas
+        run: pytest -v --junitxml=reporte-pruebas.xml
+
+      - name: Publicar reporte de pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-pruebas
+          path: reporte-pruebas.xml
+
+  # Equivale a "Construir imagen" y "Prueba de humo"; solo corre si las pruebas pasan
+  imagen:
+    runs-on: ubuntu-latest
+    needs: pruebas
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir imagen
+        run: docker build -t inventario:${{ github.run_number }} .
+
+      - name: Prueba de humo
+        run: |
+          docker run -d --name humo -p 8000:8000 inventario:${{ github.run_number }}
+          sleep 3
+          curl -fsS http://localhost:8000/salud
+
+      - name: Limpiar
+        if: always()
+        run: docker rm -f humo || true
